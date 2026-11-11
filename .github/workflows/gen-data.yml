@@ -1,0 +1,39 @@
+name: Generate Minecraft data
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Phiên bản Minecraft"
+        default: "26.2"
+
+jobs:
+  gen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Tải server.jar chính thức từ Mojang
+        run: |
+          V="${{ inputs.version }}"
+          curl -sSL https://piston-meta.mojang.com/mc/game/version_manifest_v2.json -o manifest.json
+          URL=$(jq -r --arg v "$V" '.versions[] | select(.id==$v) | .url' manifest.json)
+          curl -sSL "$URL" -o version_meta.json
+          SERVER=$(jq -r '.downloads.server.url' version_meta.json)
+          curl -sSL "$SERVER" -o server.jar
+          ls -lh server.jar
+
+      - name: Chạy data generator
+        run: java -DbundlerMainClass=net.minecraft.data.Main -jar server.jar --reports --output generated
+
+      - name: Lấy số protocol
+        run: unzip -p server.jar version.json > generated/version.json || true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mc-data
+          path: generated
+          retention-days: 2
