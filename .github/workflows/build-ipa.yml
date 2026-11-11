@@ -1,0 +1,36 @@
+name: Build iOS IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    tags: ["v*"]
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cài target iOS
+        run: rustup target add aarch64-apple-ios
+
+      - name: Chạy test lõi game
+        run: cargo test --lib
+
+      - name: Build release cho iPhone
+        run: cargo build --release --target aarch64-apple-ios
+
+      - name: Đóng gói .ipa
+        run: |
+          rm -rf Payload Cubeland.ipa
+          mkdir -p Payload/Cubeland.app
+          cp target/aarch64-apple-ios/release/cubeland Payload/Cubeland.app/cubeland
+          cp ios/Info.plist Payload/Cubeland.app/Info.plist
+          zip -qr Cubeland.ipa Payload
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Cubeland-ipa
+          path: Cubeland.ipa
